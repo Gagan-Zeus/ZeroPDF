@@ -22,6 +22,9 @@ export default function Unlock() {
   const [stage, setStage] = useState<Stage>('idle')
   const [file, setFile] = useState<File | null>(null)
   const [password, setPassword] = useState('')
+  const [passwordMode, setPasswordMode] = useState<'manual' | 'auto'>('manual')
+  const [name, setName] = useState('')
+  const [birthYear, setBirthYear] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [pageCount, setPageCount] = useState(0)
@@ -31,6 +34,7 @@ export default function Unlock() {
 
   const inputRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
 
   // Revoke blob URL on cleanup
   useEffect(() => {
@@ -38,6 +42,21 @@ export default function Unlock() {
       if (blobUrl) URL.revokeObjectURL(blobUrl)
     }
   }, [blobUrl])
+
+  // Generate Aadhaar password from name and birth year
+  const generateAadhaarPassword = useCallback((fullName: string, year: string): string => {
+    // Take first 4 characters of name (including spaces, dots, etc.) and convert to uppercase
+    const namePrefix = fullName.slice(0, 4).toUpperCase()
+    return namePrefix + year
+  }, [])
+
+  // Auto-generate password when name or year changes
+  useEffect(() => {
+    if (passwordMode === 'auto' && name && birthYear.length === 4) {
+      const generated = generateAadhaarPassword(name, birthYear)
+      setPassword(generated)
+    }
+  }, [passwordMode, name, birthYear, generateAadhaarPassword])
 
   const handleFile = useCallback(async (f: File) => {
     if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
@@ -47,6 +66,9 @@ export default function Unlock() {
     }
     setFile(f)
     setPassword('')
+    setName('')
+    setBirthYear('')
+    setPasswordMode('manual')
     setErrorMessage('')
     if (blobUrl) {
       URL.revokeObjectURL(blobUrl)
@@ -149,6 +171,9 @@ export default function Unlock() {
     setBlobUrl(null)
     setFile(null)
     setPassword('')
+    setName('')
+    setBirthYear('')
+    setPasswordMode('manual')
     setStage('idle')
     setErrorMessage('')
     setProgress(0)
@@ -156,7 +181,9 @@ export default function Unlock() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && password && file && stage === 'file-selected') {
-      handleUnlock()
+      if (passwordMode === 'manual' || (passwordMode === 'auto' && name && birthYear.length === 4)) {
+        handleUnlock()
+      }
     }
   }
 
@@ -340,7 +367,108 @@ export default function Unlock() {
               </button>
             </div>
 
+            {/* Password Mode Selector */}
+            <div>
+              <label className="mb-1.5 block text-[12px] font-medium text-text-secondary">
+                Password Input Method
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordMode('manual')
+                    setPassword('')
+                    setName('')
+                    setBirthYear('')
+                    setTimeout(() => passwordRef.current?.focus(), 100)
+                  }}
+                  disabled={stage === 'processing'}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-[12px] font-medium transition-all disabled:opacity-50 ${
+                    passwordMode === 'manual'
+                      ? 'border-accent bg-accent/5 text-accent'
+                      : 'border-border bg-surface-elevated text-text-secondary hover:border-neutral-300'
+                  }`}
+                >
+                  Enter Password
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordMode('auto')
+                    setPassword('')
+                    setTimeout(() => nameRef.current?.focus(), 100)
+                  }}
+                  disabled={stage === 'processing'}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-[12px] font-medium transition-all disabled:opacity-50 ${
+                    passwordMode === 'auto'
+                      ? 'border-accent bg-accent/5 text-accent'
+                      : 'border-border bg-surface-elevated text-text-secondary hover:border-neutral-300'
+                  }`}
+                >
+                  Auto-Generate (Aadhaar)
+                </button>
+              </div>
+            </div>
+
+            {/* Auto-Generate Fields */}
+            {passwordMode === 'auto' && (
+              <div className="space-y-3">
+                <div>
+                  <label
+                    htmlFor="aadhaar-name"
+                    className="mb-1.5 block text-[12px] font-medium text-text-secondary"
+                  >
+                    Full Name (as on Aadhaar)
+                  </label>
+                  <input
+                    ref={nameRef}
+                    id="aadhaar-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="e.g., SURESH KUMAR or P. KUMAR"
+                    disabled={stage === 'processing'}
+                    className="h-10 w-full rounded-lg border border-border bg-surface-elevated px-3 text-[13px] text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="birth-year"
+                    className="mb-1.5 block text-[12px] font-medium text-text-secondary"
+                  >
+                    Year of Birth
+                  </label>
+                  <input
+                    id="birth-year"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={birthYear}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (/^\d*$/.test(value)) {
+                        setBirthYear(value)
+                      }
+                    }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="YYYY (e.g., 1990)"
+                    disabled={stage === 'processing'}
+                    className="h-10 w-full rounded-lg border border-border bg-surface-elevated px-3 text-[13px] text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
+                  />
+                </div>
+                {password && (
+                  <div className="rounded-lg bg-green-50/60 px-3 py-2">
+                    <p className="text-[11px] text-green-600/80">
+                      Generated Password: <span className="font-mono font-medium">{password}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Password input */}
+            {passwordMode === 'manual' && (
             <div>
               <label
                 htmlFor="pdf-password"
@@ -380,10 +508,11 @@ export default function Unlock() {
                 <Info className="mt-0.5 h-3 w-3 shrink-0 text-blue-400" />
                 <p className="text-[11px] leading-relaxed text-blue-600/80">
                   Many Aadhaar PDFs use: First 4 letters of name (CAPS) + Birth Year.
-                  E.g., <span className="font-medium">GAGA1990</span>
+                  E.g., <span className="font-medium">SURE1990</span>
                 </p>
               </div>
             </div>
+            )}
 
             {/* Error */}
             <AnimatePresence>
@@ -422,7 +551,11 @@ export default function Unlock() {
             {/* CTA */}
             <button
               onClick={handleUnlock}
-              disabled={!password || stage === 'processing'}
+              disabled={
+                !password ||
+                stage === 'processing' ||
+                (passwordMode === 'auto' && (!name || birthYear.length !== 4))
+              }
               className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent text-[13px] font-semibold text-white shadow-sm transition-all hover:bg-accent-hover hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-sm"
             >
               {stage === 'processing' ? (
