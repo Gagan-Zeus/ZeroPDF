@@ -1,73 +1,57 @@
-# React + TypeScript + Vite
+# ZeroPDF
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A browser-based PDF password removal tool that preserves document quality. All processing happens locally in your browser - files never leave your device.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Remove passwords from encrypted PDFs
+- Preserves vector text and graphics (no quality loss)
+- Auto-detects if PDF is password protected
+- Works completely offline
+- Zero file uploads - everything runs in-browser
+- Maintains original file size
 
-## React Compiler
+## How It Works
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+ZeroPDF uses MuPDF.js (compiled to WebAssembly) to decrypt password-protected PDFs. Unlike other tools that rasterize pages into images, this approach preserves all vector content including text, fonts, and graphics. The result is identical to the original PDF but without encryption.
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- React 19 with TypeScript
+- MuPDF.js for PDF decryption
+- Tailwind CSS for styling
+- Framer Motion for animations
+- Vite for build tooling
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Development
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Install dependencies:
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Start dev server:
+```bash
+npm run dev
 ```
+
+Build for production:
+```bash
+npm run build
+```
+
+## How to Use
+
+1. Drop an encrypted PDF or click to browse
+2. Enter the password when prompted
+3. Download the unlocked PDF
+
+If you upload a non-encrypted PDF, the app will notify you that no password is required.
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Notes
+
+MuPDF.js is licensed under AGPL. If you're building a commercial closed-source application, contact Artifex for a commercial license.
