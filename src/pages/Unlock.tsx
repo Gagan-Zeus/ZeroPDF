@@ -14,9 +14,9 @@ import {
   Loader2,
   Info,
 } from 'lucide-react'
-import { unlockPdf, formatFileSize } from '../lib/pdf-unlock'
+import { unlockPdf, checkPdfEncryption, formatFileSize } from '../lib/pdf-unlock'
 
-type Stage = 'idle' | 'file-selected' | 'processing' | 'success' | 'error'
+type Stage = 'idle' | 'checking' | 'file-selected' | 'processing' | 'success' | 'error' | 'not-encrypted'
 
 export default function Unlock() {
   const [stage, setStage] = useState<Stage>('idle')
@@ -39,22 +39,43 @@ export default function Unlock() {
     }
   }, [blobUrl])
 
-  const handleFile = useCallback((f: File) => {
+  const handleFile = useCallback(async (f: File) => {
     if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
       setErrorMessage('Please select a PDF file.')
       setStage('error')
       return
     }
     setFile(f)
-    setStage('file-selected')
     setPassword('')
     setErrorMessage('')
     if (blobUrl) {
       URL.revokeObjectURL(blobUrl)
       setBlobUrl(null)
     }
-    // Focus password field after a tick
-    setTimeout(() => passwordRef.current?.focus(), 100)
+
+    // Check if PDF is encrypted
+    setStage('checking')
+    try {
+      const buffer = await f.arrayBuffer()
+      const result = await checkPdfEncryption(buffer)
+
+      if (result.error) {
+        setErrorMessage(result.error)
+        setStage('error')
+        return
+      }
+
+      if (!result.isEncrypted) {
+        setStage('not-encrypted')
+        return
+      }
+
+      setStage('file-selected')
+      setTimeout(() => passwordRef.current?.focus(), 100)
+    } catch {
+      setErrorMessage('Failed to read the PDF file.')
+      setStage('error')
+    }
   }, [blobUrl])
 
   const handleDrop = useCallback(
@@ -233,6 +254,54 @@ export default function Unlock() {
                 }}
               />
             </div>
+          </motion.div>
+        )}
+
+        {stage === 'checking' && (
+          <motion.div
+            key="checking"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col items-center justify-center py-12"
+          >
+            <Loader2 className="h-8 w-8 animate-spin text-accent" />
+            <p className="mt-3 text-[13px] text-text-secondary">Checking PDF…</p>
+          </motion.div>
+        )}
+
+        {stage === 'not-encrypted' && file && (
+          <motion.div
+            key="not-encrypted"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="space-y-4"
+          >
+            <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-6 text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
+                className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100"
+              >
+                <UnlockIcon className="h-6 w-6 text-blue-500" />
+              </motion.div>
+              <h2 className="text-[15px] font-semibold text-text-primary">
+                PDF is Not Password Protected
+              </h2>
+              <p className="mt-1 text-[12px] text-text-secondary">
+                "{file.name}" doesn't require a password to open.
+              </p>
+            </div>
+
+            <button
+              onClick={reset}
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent text-[13px] font-semibold text-white shadow-sm transition-all hover:bg-accent-hover hover:shadow-md active:scale-[0.98]"
+            >
+              Try Another PDF
+            </button>
           </motion.div>
         )}
 
